@@ -1,0 +1,167 @@
+name: "joern-demo-npm"
+
+on:
+  workflow_dispatch:
+    
+  push: # Triggers scan-repo flow for every push to the specified branches
+    branches:
+      - main
+
+permissions:
+  pull-requests: write
+  contents: read
+  security-events: write
+  id-token: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    # FIX #5: Set build name and number at job level so every jf command inherits them.
+    # Without these, build-info is published under an unpredictable name and jf build-scan
+    # cannot find the build ("No scan results for the requested build").
+    env:
+      JFROG_CLI_BUILD_NAME: joern-demo-npm
+      JFROG_CLI_BUILD_NUMBER: ${{ github.run_number }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup JFrog CLI
+        uses: jfrog/setup-jfrog-cli@v4
+        id: setup-cli
+        env:
+          JF_URL: ${{ vars.JF_URL }}
+          JFROG_CLI_LOG_LEVEL: DEBUG
+        with:
+          oidc-provider-name: joestack
+          #version: 2.104.1
+
+      - name: JFrog CLI Test
+        run: |
+          jf rt ping
+
+      - name: Authenticate Docker Repo
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ vars.JF_URL }}
+          username: ${{ steps.setup-cli.outputs.oidc-user }}
+          password: ${{ steps.setup-cli.outputs.oidc-token }}
+
+      - name: Scan Source (SCA + Contextual Analysis + Secrets + SAST + Snippet Detection)
+        run: |
+          jf audit \
+            --sca --sast --secrets \
+            --static-sca \
+            --sbom \
+            --extended-table \
+            --format=table | tee scan-result-audit
+
+      - name: Push Source Code Artifacts to GitHub
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: source-code-scan
+          path: scan-result-audit
+
+      - name: Setup Node npm
+        uses: actions/setup-node@v3
+           
+      - name: Setup npm-config
+        # The repo ships .jfrog/projects/npm.yaml pinned to a local serverId ("solengeu") that
+        # does not exist on CI, and a repo-local project config overrides the global one. Regenerate
+        # it here (project-scoped, no --global) so it points at the runner's default server
+        # (setup-jfrog-cli-server) that setup-jfrog-cli configured via OIDC.
+        run: |
+          rm -f .jfrog/projects/npm.yaml
+          jf npm-config --repo-resolve=joern-npm-remote --repo-deploy=joern-npm-local
+                      
+      - name: Install Deps
+        run: jf npm install
+
+      - name: Start App
+        run: |
+           npm start &
+           npx wait-on http://localhost:3000 -t 30000
+           
+      - name: Run tests
+        run: npm test
+         
+      - name: Publish
+        run: jf npm publish
+
+      - name: Package App
+        run: |
+          npm prune --omit=dev
+          tar -czf app.tar.gz \
+            package.json package-lock.json \
+            server.mjs graph.mjs \
+            routes todo views public \
+            node_modules
+
+      - name: Upload Build Artifact to Artifactory
+        env:
+          ARTIFACT_PATH: joern-generic-local/myapp/${{ github.run_number }}/app.tar.gz
+        run: jf rt upload app.tar.gz "$ARTIFACT_PATH"
+
+      - name: Download Build Artifact for Docker context
+        env:
+          ARTIFACT_PATH: joern-generic-local/myapp/${{ github.run_number }}/app.tar.gz
+        run: |
+          rm -f app.tar.gz
+          jf rt download "$ARTIFACT_PATH" ./ --flat
+          ls -la app.tar.gz
+
+      - name: Build Docker Image
+        working-directory: ./
+        env:
+          IMAGE_NAME: joe.rodolphef.org/joern-docker-local/myapp-image:${{ github.run_number }}
+        run: |
+          jf docker build -t $IMAGE_NAME .
+
+      - name: Scan Docker Image
+        # FIX #1: Moved the shell redirect (>) to the end of the command, after all flags.
+        #         Previously it was mid-command after --format=json, which passed the filename
+        #         as a flag value and broke both the scan output and the redirect.
+        # FIX #2: Added --fail=true so a policy violation actually blocks the push. Without it
+        #         the scan is advisory only and a vulnerable image is still pushed to Artifactory.
+        working-directory: ./
+        env:
+          IMAGE_NAME: joe.rodolphef.org/joern-docker-local/myapp-image:${{ github.run_number }}
+        run: |
+          jf docker scan $IMAGE_NAME \
+            --format=json \
+            --detailed-summary \
+            --licenses \
+            --fail=true \
+            > scan-result-image.json
+
+      - name: Push Docker Image
+        # This step only runs if the scan above passed (--fail=true enforces the gate).
+        working-directory: ./
+        env:
+          IMAGE_NAME: joe.rodolphef.org/joern-docker-local/myapp-image:${{ github.run_number }}
+        run: |
+          jf docker push $IMAGE_NAME
+
+      - name: Push Scan Artifacts to GitHub
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: scan-results-image
+          path: scan-result-image.json
+
+      - name: Publish Build Info With JFrog CLI
+        # FIX #4: Removed the duplicate/early `jf rt bce` call that was in the old
+        #         "Collect Docker Build Environment" step. All three build-info steps
+        #         (bce, bag, bp) now run together here, after all build and scan work
+        #         is complete, which is the correct order per the 5-step pattern.
+        run: |
+          jf rt build-collect-env
+          jf rt build-add-git
+          jf rt build-publish --detailed-summary
+
+      - name: Build Scan
+        # FIX #3: Added --fail=true so policy violations fail the pipeline.
+        run: |
+          jf build-scan --fail=true

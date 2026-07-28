@@ -1,0 +1,54 @@
+git checkout -b test
+
+add
+"curl": "0.1.4"
+to packacke.json
+
+git add -A
+git commit -m "dev add curl"
+
+cd src
+
+npm i  --package-lock-only
+or
+npm install
+
+cd ..
+
+git checkout -b test
+
+git add -A
+
+git commit -m “test”
+
+git push origin test 
+
+gh pr create --title “test” --body “test”
+
+git checkout main
+git branch -D test
+
+git push origin --delete test
+
+git fetch --prune
+
+
+
+
+CURATION
+malicious packackes:
+
+"jfrog-curation-malicious-dummy": "1.0.0"
+"bidirectional-adapter": "1.2.5"
+
+"curl": "0.1.2",
+"jfrog-curation-malicious-dummy": "1.0.0"
+"cors.js": "^0.0.1-security"
+
+XRAY WATCH
+version contraints:
+"morgan": "1.9.0" # to fail policy 
+"morgan": "^1.10.0" # to be compliant
+
+
+

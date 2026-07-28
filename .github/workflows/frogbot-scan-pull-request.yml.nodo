@@ -1,0 +1,40 @@
+name: "Frogbot v3 Scan Pull Request"
+on:
+  pull_request_target:
+    types: [opened, synchronize, reopened] # Triggers scan-pr flow for every opened/updated pull request
+permissions:
+  pull-requests: write
+  contents: read
+  # [Mandatory if using OIDC authentication protocol instead of JF_ACCESS_TOKEN]
+  id-token: write
+jobs:
+  scan-pull-request:
+    runs-on: ubuntu-latest
+    # A pull request needs to be approved before Frogbot scans it. Any GitHub user who is associated with the
+    # "frogbot" GitHub environment can approve the pull request to be scanned.
+    environment: frogbot
+    steps:
+
+      - uses: jfrog/frogbot@v3
+        env:
+          JF_URL: ${{ vars.JF_URL }}
+          JF_GIT_TOKEN: ${{ secrets.JF_GIT_TOKEN }}
+
+          # ---------------------------------------------------------------------------------------------
+          # REQUIRED for Snippet Detection (and the other advanced scanners: Contextual Analysis,
+          # Secrets, IaC, SAST) configured centrally in the JFrog Platform:
+          #   Administration > Xray Settings > Indexed Resources > Git Repositories
+          #     > select this repo > Configure > enable "Snippet Detection" > Apply
+          # Frogbot only reads that platform Config Profile when this is set to "true" (default: false).
+          # Without it, Frogbot runs legacy env-var mode and snippet detection never executes.
+          JF_USE_CONFIG_PROFILE: "true"
+
+          # Security Settings (env vars take priority over the Config Profile)
+          JF_MIN_SEVERITY: "medium"
+          JF_FAIL: "true"
+          JF_INCLUDE_ALL_VULNERABILITIES: "true"
+          #JF_WATCHES: "w-critical"
+          #JFROG_CLI_LOG_LEVEL: DEBUG
+        with:
+          oidc-provider-name: "joern-github"
+          #oidc-audience: ptfl-aud
