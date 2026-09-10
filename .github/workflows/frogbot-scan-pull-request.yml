@@ -1,0 +1,35 @@
+name: "Frogbot Scan Pull Request"
+on:
+  pull_request_target:
+    types: [opened, synchronize]
+
+permissions:
+  contents: write
+  pull-requests: write
+  security-events: write
+  id-token: write   # required to request the OIDC token
+
+jobs:
+  scan-pull-request:
+    runs-on: ubuntu-latest
+    # A pull request must be approved before Frogbot scans it - anyone associated with the "frogbot"
+    # GitHub environment can approve. This gates pull_request_target (which runs with repo secrets/
+    # write access even for fork PRs) behind a human before it touches anything. Create this
+    # environment under Settings > Environments if it doesn't exist yet - see .frogbot/SETUP.md.
+    environment: frogbot
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Run Frogbot Scan
+        uses: jfrog/frogbot@v3
+        with:
+          oidc-provider-name: joestack
+        env:
+          JF_URL: https://joe.rodolphef.org
+          JF_GIT_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          JF_GIT_PROVIDER: github
+          JF_GIT_OWNER: ${{ github.repository_owner }}
+          JF_GIT_REPO: rod-npm-demo
+          JF_GIT_BASE_BRANCH: main
+          JF_GIT_PULL_REQUEST_ID: ${{ github.event.pull_request.number }}

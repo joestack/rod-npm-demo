@@ -1,0 +1,33 @@
+name: "Frogbot Scan Repository"
+on:
+  push:
+    branches:
+      - main
+  schedule:
+    - cron: "0 3 * * *"   # daily at 03:00 UTC
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pull-requests: write
+  security-events: write
+  id-token: write   # required to request the OIDC token
+
+jobs:
+  scan-repository:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Run Frogbot Scan
+        uses: jfrog/frogbot@v3
+        with:
+          oidc-provider-name: joestack
+        env:
+          JF_URL: https://joe.rodolphef.org
+          JF_GIT_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          JF_GIT_PROVIDER: github
+          JF_GIT_OWNER: ${{ github.repository_owner }}
+          JF_GIT_REPO: rod-npm-demo
+          JF_GIT_BASE_BRANCH: main

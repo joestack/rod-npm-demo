@@ -1,0 +1,8 @@
+version: 1
+type: npm
+resolver:
+    repo: joern-npm-remote
+    serverId: joe.rodolphef.org
+deployer:
+    repo: joern-npm-local
+    serverId: joe.rodolphef.org
