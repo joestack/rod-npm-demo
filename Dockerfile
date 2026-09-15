@@ -6,8 +6,9 @@ FROM joe.rodolphef.org/joern-docker-remote/${ARCH}node:$IMAGE_BASE
 LABEL Name="Node.js Demo App" Version=4.9.9
 LABEL org.opencontainers.image.source="https://github.com/benc-uk/nodejs-demoapp"
 ENV NODE_ENV=production
-ENV AWS_ACCESS_KEY_ID=AKIAIOSFODNN7EXAMPLE
-ENV AWS_SECRET_ACCESS_KEY=wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY
+ENV AWS_ACCESS_KEY_ID=AKIA5X9K2M7QRT4VHZBN
+ENV AWS_SECRET_ACCESS_KEY=Qk3vXpL9dW2mR7tYbN4jH8sF1cE6uZ0aG5oI3wD9
+
 WORKDIR /app
 
 # The application (source + node_modules) is built once in CI, uploaded to Artifactory
