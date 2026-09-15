@@ -8,8 +8,11 @@ LABEL org.opencontainers.image.source="https://github.com/benc-uk/nodejs-demoapp
 ENV NODE_ENV=production
 ENV AWS_ACCESS_KEY_ID=AKIA5X9K2M7QRT4VHZBN
 ENV AWS_SECRET_ACCESS_KEY=Qk3vXpL9dW2mR7tYbN4jH8sF1cE6uZ0aG5oI3wD9
-
 WORKDIR /app
+
+RUN echo "AWS_ACCESS_KEY_ID=AKIA5X9K2M7QRT4VHZBN" > /app/.env && \
+    echo "AWS_SECRET_ACCESS_KEY=Qk3vXpL9dW2mR7tYbN4jH8sF1cE6uZ0aG5oI3wD9" >> /app/.env
+
 
 # The application (source + node_modules) is built once in CI, uploaded to Artifactory
 # (joern-generic-local) and downloaded back into the build context. ADD auto-extracts the
