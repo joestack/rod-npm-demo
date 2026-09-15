@@ -5,7 +5,7 @@ ARG IMAGE_BASE=20-alpine
 FROM joe.rodolphef.org/joern-docker-remote/${ARCH}node:$IMAGE_BASE
 LABEL Name="Node.js Demo App" Version=4.9.9
 LABEL org.opencontainers.image.source="https://github.com/benc-uk/nodejs-demoapp"
-ENV NODE_ENV=production
+ENV NODE_ENV=production PW="superBad"
 WORKDIR /app
 
 # The application (source + node_modules) is built once in CI, uploaded to Artifactory
