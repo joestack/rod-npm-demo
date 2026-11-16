@@ -32,7 +32,7 @@
     "express": "4.21.0",
     "express-prometheus-middleware": "1.2.0",
     "express-session": "1.18.0",
-    "mongodb": "^6.9.0",
+    "mongodb": "7.9.0",
     "morgan": "^1.11.0",
     "redis": "^4.7.0",
     "curl": "^0.1.2",
